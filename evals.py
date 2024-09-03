@@ -1,57 +1,68 @@
-from ablationEstimator import AblationLayerEstimator
+from datasets import load_dataset
 import torch
-from transformers import AutoTokenizer
-from mteb import MTEB
+from ablationEstimator import AblationLayerEstimator
 import numpy as np
+from sklearn.metrics import v_measure_score
+from sklearn.cluster import KMeans
+import random
 
-# List of tasks we want 
-tasks = ["ArxivClusteringP2P", "ArxivClusteringS2S"]
+# Load datasets
+ds1 = load_dataset("mteb/arxiv-clustering-p2p")
+ds2 = load_dataset("mteb/arxiv-clustering-s2s")
+
+# List of tasks and their corresponding datasets
+tasks = {
+    "ArxivClusteringP2P": ds1["test"],
+    "ArxivClusteringS2S": ds2["test"]
+}
+
 num_layers = 32
 results = {}
 
-def custom_split(dataset):
-    all_indices = list(range(len(dataset)))
-    print(len(dataset))
-    subset_size = 1
-    subset_indices = random.sample(all_indices, subset_size)
+def evaluate_clustering(embeddings, labels):
+    # Perform K-means clustering
+    n_clusters = len(set(labels))
+    kmeans = KMeans(n_clusters=n_clusters, n_init=10, random_state=42)
+    predicted_clusters = kmeans.fit_predict(embeddings)
     
-    return {
-        'test': subset_indices  # We're only using the 'test' split in this case
-    }
+    # Calculate V-measure score
+    v_measure = v_measure_score(labels, predicted_clusters)
+    return v_measure
+
+
 
 for layer in range(num_layers):
     print(f"Evaluating model with layer {layer} ablated...")
     model = AblationLayerEstimator(layer).to('cuda')
-
-
-    # Run evaluation with custom split, the reason for this is bc the evals in the ablation study are not as important
-    # with more compute, we would run with a full eval or a larger partition
     
-    # Create MTEB object with custom split and specified split
-    evaluation = MTEB(tasks=tasks, task_langs=["en"], 
-                      custom_split_function=custom_split,
-                      split='test')  # Specify which split to use here
-    
-    # Run evaluation
-    result = evaluation.run(
-        model,
-        evaluation_name=f"NV-Embed-v2_layer_{layer}_ablated",
-        output_folder=f"results/layer_{layer}",
+    task_results = {}
+    for task_name, dataset in tasks.items():
+        # Get a subset of the dataset
         
-    )
+        subset = dataset[0] #dataset is 31,2, but in each row of 31, there is a list of sentences that match with a list of labels
+        #for this basic eval for ablation testing, we only really need the first list matches
+        
+        
+        # Get embeddings
+        embeddings = model(subset['sentences'])  # Changed 'text' to 'sentences'
+        
+        # Evaluate clustering
+        v_measure = evaluate_clustering(embeddings.cpu().numpy(), subset['labels'])  # Changed 'label' to 'labels'
+        
+        task_results[task_name] = {'v_measure': v_measure}
     
     # Store results
-    results[layer] = result
+    results[layer] = task_results
 
     # Clear CUDA cache after each layer evaluation
     torch.cuda.empty_cache()
+
 
 # Analyze results
 task_scores = {task: [] for task in tasks}
 
 for layer, result in results.items():
     for task in tasks:
-        # Assuming the main metric is 'v_measure'. Adjust if needed.
         score = result[task]['v_measure']
         task_scores[task].append((layer, score))
 

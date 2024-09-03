@@ -13,7 +13,7 @@ from typing import List
 class AblationLayerEstimator(nn.Module):
     def __init__(self, ablation_layer: int):
         super(AblationLayerEstimator, self).__init__()
-        self.model = AutoModel.from_pretrained('nvidia/NV-Embed-v2', trust_remote_code=True).to('cuda')
+        self.model = AutoModel.from_pretrained('nvidia/NV-Embed-v2', trust_remote_code=True,torch_dtype=torch.float8_e4m3fn).to('cuda')
         for param in self.model.parameters():
             param.requires_grad = False
         
@@ -25,7 +25,7 @@ class AblationLayerEstimator(nn.Module):
     def forward(self, x):
         return self.model.encode(x)
 
-    def encode(self, sentences: List[str], batch_size: int = 1536, **kwargs):
+    def encode(self, sentences: List[str], batch_size: int = 32, **kwargs):
         all_embeddings = []
         for i in range(0, len(sentences), batch_size):
             batch = sentences[i:i+batch_size]
@@ -33,6 +33,3 @@ class AblationLayerEstimator(nn.Module):
                 embeddings = self.forward(batch)
             all_embeddings.append(embeddings)
         return torch.cat(all_embeddings, dim=0)
-
-
-        
