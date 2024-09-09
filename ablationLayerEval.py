@@ -1,3 +1,6 @@
+#this script uses a subset of clustering evals to decide what layers to ablate
+#it is a proper subset to minimize time and compute, as MTEB evals tend to have a lot of data
+
 from datasets import load_dataset
 import torch
 from ablationEstimator import AblationLayerEstimator
@@ -44,7 +47,7 @@ for layer in range(num_layers):
         
         
         # Get embeddings
-        embeddings = model(subset['sentences'])  # Changed 'text' to 'sentences'
+        embeddings = model.encode(subset['sentences'],layer=layer)  # Changed 'text' to 'sentences'
         
         # Evaluate clustering
         v_measure = evaluate_clustering(embeddings.cpu().numpy(), subset['labels'])  # Changed 'label' to 'labels'
