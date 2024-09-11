@@ -35,15 +35,14 @@ class AblatedEmbedder(nn.Module):
         self.model.embedding_model.layers = new_layers
        
         # Update the config to reflect the new number of layers
-        #self.model.config.num_hidden_layers = len(new_layers)
+        self.model.config.text_config.num_hidden_layers = len(new_layers)
         
-    def forward(self, *args, **kwargs):
-        return self.model(*args, **kwargs)
+        
+    def forward(self,x,attention_mask=None, *args, **kwargs):
+        
+        return self.model(x,attention_mask=attention_mask)
 
     def encode(self, *args, **kwargs):
         return self.model.encode(*args, **kwargs)
 
 
-abl=AblatedEmbedder([0,1])
-
-print(abl.model)
