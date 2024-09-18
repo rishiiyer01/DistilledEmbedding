@@ -1,8 +1,10 @@
 
 
+
 #training, distillation file
 
 import torch
+
 import torch.nn as nn
 from transformers import AutoModel
 from typing import List
@@ -30,10 +32,10 @@ retrieval_set = load_dataset("embedding-data/WikiAnswers")
 def collate_fn(batch):
     return [sentence for example in batch for sentence in example['set']]
 
-batch_size =2  
+batch_size =1
 # Split the dataset into train and test
 #5% of the original dataset
-small_dataset = retrieval_set['train'].select(range(len(retrieval_set['train']) // 20))  # '// 20' is equivalent to 5%
+small_dataset = retrieval_set['train'].select(range(len(retrieval_set['train']) // 200)) #approx 100000 sentences
 
 train_test_split = small_dataset.train_test_split(test_size=0.05, seed=42)
 train_dataset = train_test_split['train']
@@ -52,56 +54,57 @@ def distillation_loss(student_logits, teacher_logits, temperature=1):
 optimizer = torch.optim.AdamW(distilled_model.parameters(), lr=1e-4)
 
 # Training loop
-num_epochs = 5  # Adjust as needed
-
-for epoch in range(num_epochs):
-    distilled_model.train()
-    total_loss = 0
-    
-    for batch in tqdm(trainloader, desc=f"Epoch {epoch+1}/{num_epochs}"):
-        optimizer.zero_grad()
+num_epochs = 1  # Adjust as needed
+try:
+    for epoch in range(num_epochs):
+        distilled_model.train()
+        total_loss = 0
         
-        # Move batch to GPU
-        #input_ids = batch['input_ids'].to('cuda')
-        #attention_mask = batch['attention_mask'].to('cuda')
-        #batch=batch.to('cuda')
-        
-        # Get embeddings from original model
-        with torch.no_grad():
-            original_embeddings = original_model.encode(batch) #encode method built in to forward of distilled model
-
-        # Get embeddings from distilled model
-        distilled_embeddings = distilled_model(batch)
-        #print(distilled_embeddings.grad_fn)
-        # Compute loss
-        loss = distillation_loss(distilled_embeddings, original_embeddings)
-        
-        # Backpropagate and optimize
-        loss.backward()
-        optimizer.step()
-        
-        total_loss += loss.item()
-    
-    avg_loss = total_loss / len(dataloader)
-    print(f"Epoch {epoch+1}/{num_epochs}, Average Loss: {avg_loss:.4f}")
-    # Evaluation
-    distilled_model.eval()
-    eval_loss = 0
-    with torch.no_grad():
-        for batch in tqdm(testloader, desc="Evaluating"):
-            input_ids = batch['input_ids'].to('cuda')
-            attention_mask = batch['attention_mask'].to('cuda')
-            batch.to('cuda')
-            original_embeddings = original_model.encode(batch)
-            distilled_embeddings = distilled_model(batch)
+        for batch in tqdm(trainloader, desc=f"Epoch {epoch+1}/{num_epochs}"):
+            optimizer.zero_grad()
             
-            loss = distillation_loss(distilled_embeddings, original_embeddings)
-            eval_loss += loss.item()
+            # Move batch to GPU
+            #input_ids = batch['input_ids'].to('cuda')
+            #attention_mask = batch['attention_mask'].to('cuda')
+            #batch=batch.to('cuda')
+            
+            # Get embeddings from original model
+            with torch.no_grad():
+                original_embeddings = original_model.encode(batch) #encode method built in to forward of distilled model
     
-    avg_eval_loss = eval_loss / len(eval_dataloader)
-    print(f"Epoch {epoch+1}/{num_epochs}, Validation Loss: {avg_eval_loss:.4f}")
-
-
+            # Get embeddings from distilled model
+            distilled_embeddings = distilled_model(batch)
+            #print(distilled_embeddings.grad_fn)
+            # Compute loss
+            loss = distillation_loss(distilled_embeddings, original_embeddings)
+            
+            # Backpropagate and optimize
+            loss.backward()
+            optimizer.step()
+            
+            total_loss += loss.item()
+        
+        avg_loss = total_loss / len(dataloader)
+        print(f"Epoch {epoch+1}/{num_epochs}, Average Loss: {avg_loss:.4f}")
+        # Evaluation
+        distilled_model.eval()
+        eval_loss = 0
+        with torch.no_grad():
+            for batch in tqdm(testloader, desc="Evaluating"):
+                #input_ids = batch['input_ids'].to('cuda')
+                #attention_mask = batch['attention_mask'].to('cuda')
+                #batch.to('cuda')
+                original_embeddings = original_model.encode(batch)
+                distilled_embeddings = distilled_model(batch)
+                
+                loss = distillation_loss(distilled_embeddings, original_embeddings)
+                eval_loss += loss.item()
+        
+        avg_eval_loss = eval_loss / len(eval_dataloader)
+        print(f"Epoch {epoch+1}/{num_epochs}, Validation Loss: {avg_eval_loss:.4f}")
+except:
+    # Save the distilled model
+    torch.save(distilled_model.state_dict(), 'distilled_model.pth')
 
 # Save the distilled model
 torch.save(distilled_model.state_dict(), 'distilled_model.pth')

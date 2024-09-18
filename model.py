@@ -1,3 +1,16 @@
+import signal
+
+def save_model(signum, frame):
+    print("Attempting to save the model...")
+    try:
+        torch.save(distilled_model.state_dict(), 'emergency_saved_model.pth')
+        print("Model saved successfully to emergency_saved_model.pth")
+    except Exception as e:
+        print(f"Failed to save model: {e}")
+
+signal.signal(signal.SIGUSR1, save_model)
+
+
 #model file
 
 
@@ -97,4 +110,3 @@ class DistilledModel(nn.Module):
 ##we have to compare the last hidden state of the forward embeddings to the encoded embeddings
 #import inspect
 #print(inspect.getsource(abl.embedder.model.encode))
-
