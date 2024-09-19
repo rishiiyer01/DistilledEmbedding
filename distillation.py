@@ -63,11 +63,7 @@ try:
         for batch in tqdm(trainloader, desc=f"Epoch {epoch+1}/{num_epochs}"):
             optimizer.zero_grad()
             
-            # Move batch to GPU
-            #input_ids = batch['input_ids'].to('cuda')
-            #attention_mask = batch['attention_mask'].to('cuda')
-            #batch=batch.to('cuda')
-            
+           
             # Get embeddings from original model
             with torch.no_grad():
                 original_embeddings = original_model.encode(batch) #encode method built in to forward of distilled model
@@ -91,9 +87,7 @@ try:
         eval_loss = 0
         with torch.no_grad():
             for batch in tqdm(testloader, desc="Evaluating"):
-                #input_ids = batch['input_ids'].to('cuda')
-                #attention_mask = batch['attention_mask'].to('cuda')
-                #batch.to('cuda')
+               
                 original_embeddings = original_model.encode(batch)
                 distilled_embeddings = distilled_model(batch)
                 
