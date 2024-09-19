@@ -2,7 +2,7 @@
 A prototype set of scripts to quickly train distilled and pruned versions of Nvidia-Embedv2 (https://huggingface.co/nvidia/NV-Embed-v2). 
 
 Distillation:
-We ablate layers and evaluate performance on Arxiv clustering tasks (a small subset of MTEB, https://huggingface.co/spaces/mteb/leaderboard); the layers with least importance are removed and the new, smaller model is fine-tuned with LoRA and with KL divergence to match the logit distribution of the teacher model on a text embedding dataset (https://huggingface.co/datasets/embedding-data/WikiAnswers).
+We ablate layers and evaluate performance on Arxiv clustering tasks (a small subset of MTEB, https://huggingface.co/spaces/mteb/leaderboard); the layers with least importance are removed, and the new, smaller model is fine-tuned with LoRA and with KL divergence to match the logit distribution of the teacher model on a text embedding dataset (https://huggingface.co/datasets/embedding-data/WikiAnswers).
 See distillation.py
 
 Pruning:
