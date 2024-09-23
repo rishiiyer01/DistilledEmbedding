@@ -82,8 +82,8 @@ class DistilledModel(nn.Module):
 
     def forward(self, x, attention_mask=None):
         output = self.embedder.encode(x) #.encode used to be here
-        if not output.requires_grad:
-            print("Warning: Output from embedder.encode does not require gradients")
+        #if not output.requires_grad:
+            #print("Warning: Output from embedder.encode does not require gradients")
         return output
 
 

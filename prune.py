@@ -32,22 +32,23 @@ class PrunedDistilledModel(nn.Module):
     
                 x=self.distilled_model(x)
                 self.activations=(self.activations+x)/2
-        
+                
     def prune(self,x):
         #get 50% topk indices of self.activations
-        num_to_keep = int(self.activations.shape[0] * (1 - self.pruning_rate))
+        num_to_keep = int(self.activations.shape[1] * (1 - self.pruning_rate))
         _, top_indices = torch.topk(self.activations, num_to_keep)
-        return x[top_indices]
+        return x[:,top_indices].squeeze()
     
     def forward(self, x):
         x=self.distilled_model(x)
-        pruned_embeddings=prune(x)
+        pruned_embeddings=self.prune(x)
         return pruned_embeddings
 
 
 ablation_list=[30,14,16,20,29,12,18,21,11,13,22,15,26,24,23,10]
 distilled_model = DistilledModel(ablation_list).to('cuda')
-distilled_model.load_state_dict(torch.load('/root/verb-workspace/DistilledEmbedding/distilled_model.pth'))
+distilled_model.load_state_dict(torch.load('/home/ubuntu/verb-workspace/DistilledEmbedding/distilled_model.pth'))
+print('loaded model successfully')
 pruning_rate = 0.5  # Adjust this value to control the amount of pruning
 pruned_model = PrunedDistilledModel(distilled_model, pruning_rate).to('cuda')
 
@@ -60,14 +61,13 @@ pruneset=ds['train']['text'][:100000]
 
 #now we finetune post pruning on similarity (traditional embedding model training)
 retrieval_set = load_dataset("embedding-data/WikiAnswers")
-small_dataset = retrieval_set['train'].select(range(len(retrieval_set['train']) // 200)) #approx 100000 sentences
+small_dataset = retrieval_set['train'].select(range(len(retrieval_set['train']) // 400)) #approx 50000 sentences
 
 train_test_split = small_dataset.train_test_split(test_size=0.05, seed=42)
 train_dataset = train_test_split['train']
 test_dataset = train_test_split['test']
 
-trainset=ds2['train']['text']
-testset=ds2['test']['text']
+
 batch_size=1 #forced to use very small batch size here because of memory consumption
 def collate_fn(batch):
     
@@ -78,13 +78,14 @@ def collate_fn2(batch):
     
     return [example['set'] for example in batch]
 
-trainloader = DataLoader(trainset, batch_size=batch_size, collate_fn=collate_fn2, shuffle=True)
-testloader = DataLoader(testset, batch_size=batch_size, collate_fn=collate_fn2, shuffle=False)
+trainloader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=collate_fn2, shuffle=True)
+testloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=collate_fn2, shuffle=False)
 pruneloader=DataLoader(pruneset,batch_size=batch_size,collate_fn=collate_fn,shuffle=True)
 
-for batch in pruneloader:
-    pruned.model.activation_recorder(batch)
+for batch in tqdm(pruneloader):
+    pruned_model.activation_recorder(batch)
 
+torch.save(pruned_model.activations, 'pruning_activations.pt')
 
 
 #now we finetune
@@ -157,7 +158,7 @@ try:
         print(f"Epoch {epoch+1}/{num_epochs}, Validation Loss: {avg_eval_loss:.4f}")
 except:
 
-    torch.save(pruned_model.state_dict(), 'pruned_model.pth')
+    torch.save(pruned_model.state_dict(), '/ephemeral/pruned_model.pth')
 
 # Save the pruned model
-torch.save(pruned_model.state_dict(), 'pruned_model.pth')
+torch.save(pruned_model.state_dict(), '/ephemeral/pruned_model.pth')
