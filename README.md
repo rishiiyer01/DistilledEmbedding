@@ -7,3 +7,6 @@ See distillation.py
 
 Pruning:
 We evaluate the embedding logit activations on a small diverse and high quality text dataset (https://huggingface.co/datasets/nampdn-ai/tiny-textbooks), then prune the embedding neurons to reduce the embedding dimension, which comes with speed up advantages in practice associated with reduced embedding size (vector db, faster cosine similarity, etc.). We then fine-tune on the same dataset as the distilled model, but with similarity scores instead of student-teacher distribution matching. See prune.py
+
+
+potentially will upload model weights in the future to huggingface
